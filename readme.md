@@ -32,3 +32,6 @@ func enum2str(enum []token.Value) (result string) {
 
 ### Notice
 **1th Beta Edition is unstable now.**
+
+### install a basic go-macro
+`go install github.com/oswaldoooo/go-macro/cmd/go-macro`
