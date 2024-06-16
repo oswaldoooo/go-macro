@@ -14,6 +14,7 @@ func newListCommand() *cobra.Command {
 		Use:   "list",
 		Short: "show available resource list",
 		Run: func(cmd *cobra.Command, args []string) {
+			loadplugins()
 			if ok, _ := cmd.Flags().GetBool("macro"); ok {
 				fmt.Println(strings.Join(analyzer.GetMacroFuncNames(), "\n"))
 			}
