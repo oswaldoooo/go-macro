@@ -37,19 +37,37 @@ func (b *Builder) Build(_flag uint8) error {
 func analyze_build(*analyzer.Analyzer) error
 
 type Build[T encoding.TextMarshaler] struct {
+	Target_ string        //if target is not null,it will be write to this file
 	Comment types.Comment //comment
 	Data    T
+	Slice   []T
 }
 
+func (b Build[T]) Target() string {
+	return b.Target_
+}
 func (b Build[T]) MarshalText() (text []byte, err error) {
 	var content string
 	if len(b.Comment) > 0 {
 		content = strings.Join(b.Comment, "\n")
 	}
-	text, err = b.Data.MarshalText()
-	if err != nil {
-		return
+	if len(b.Slice) > 0 {
+		var totaltext []byte
+		for _, ss := range b.Slice {
+			text, err = ss.MarshalText()
+			if err != nil {
+				return
+			}
+			totaltext = append(totaltext, text...)
+		}
+		text = totaltext
+	} else {
+		text, err = b.Data.MarshalText()
+		if err != nil {
+			return
+		}
 	}
+
 	content += string(text)
 	text = []byte(content)
 	return

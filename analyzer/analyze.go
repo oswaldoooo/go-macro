@@ -1,9 +1,7 @@
 package analyzer
 
 import (
-	"encoding"
 	"errors"
-	"go/format"
 	stdparser "go/parser"
 	"go/token"
 	"os"
@@ -20,9 +18,10 @@ import (
 
 type Analyzer struct {
 	*types.Packages
-	repo         map[string]funcinfo
-	appendToTail []string
-	rpath        string
+	repo          map[string]funcinfo
+	appendToTail  []string
+	rpath         string
+	other_targets map[string][]string
 }
 type context struct {
 	flag uint8
@@ -37,6 +36,7 @@ func NewAnalyzer(rpath string) (*Analyzer, error) {
 		return nil, err
 	}
 	var result Analyzer
+	result.other_targets = make(map[string][]string)
 	result.rpath = rpath
 	result.repo = repo
 	result.Packages = types.NewPackages()
@@ -134,24 +134,7 @@ func (a *Analyzer) active_struct(c context, self string, params []string) error 
 	}
 	results := f.vl.Call(fin)
 	//analyze result
-	for _, v := range results {
-		if vstr, ok := v.Interface().(string); ok {
-			a.appendToTail = append(a.appendToTail, vstr)
-			continue
-		} else if marshaler, ok := v.Interface().(encoding.TextMarshaler); ok {
-			content, err := marshaler.MarshalText()
-			if err != nil {
-				return err
-			}
-			newcontent, err := format.Source(content)
-			if err == nil {
-				content = newcontent
-			}
-			a.appendToTail = append(a.appendToTail, string(content))
-			continue
-		}
-	}
-	return nil
+	return actResult(a, results)
 }
 
 // if not found return self
@@ -193,15 +176,41 @@ func (a *Analyzer) matchFuncs(c context, name string) (result reflect.Value) {
 //go:linkname build_additional github.com/oswaldoooo/go-macro/builder.analyze_build
 func build_additional(a *Analyzer) error {
 	// fmt.Println("append to tail ", len(a.appendToTail))
+	var (
+		result string
+		f      *os.File
+		err    error
+	)
 	if len(a.appendToTail) == 0 {
+		if len(a.other_targets) > 0 {
+			goto other_targets_build
+		}
 		return nil
 	}
-	result := strings.Join(a.appendToTail, "\n\n")
-	f, err := os.OpenFile(a.rpath, os.O_WRONLY|os.O_APPEND, 0644)
+	result = strings.Join(a.appendToTail, "\n\n")
+	f, err = os.OpenFile(a.rpath, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	_, err = f.WriteString(result)
+	if err != nil {
+		return err
+	}
+other_targets_build:
+	// fmt.Println("other targets count", len(a.other_targets))
+	for k, v := range a.other_targets {
+		kf, err := os.OpenFile(k, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return errors.New("open " + k + " failed " + err.Error())
+		}
+		result = strings.Join(v, "\n\n")
+		_, err = kf.WriteString(result)
+		if err != nil {
+			kf.Close()
+			return errors.New("write to " + k + " failed " + err.Error())
+		}
+		kf.Close()
+	}
 	return err
 }

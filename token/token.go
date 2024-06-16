@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -199,7 +200,44 @@ func (f FuncType) MarshalText() (text []byte, err error) {
 	if len(f.Body) > 0 {
 		content += "\n" + f.Body
 	}
-	content += "}"
+	content += "}\n"
 	text = []byte(content)
 	return
+}
+
+type PackageDecalre struct {
+	PkgName string
+	Import  []string
+	Target_ string
+}
+
+func (p PackageDecalre) MarshalText() (text []byte, err error) {
+	if len(p.PkgName) == 0 {
+		err = errors.New("not set pkg name")
+		return
+	}
+	content := "package " + p.PkgName + "\n"
+	if len(p.Import) > 0 {
+		content += "import(\n"
+		for _, i := range p.Import {
+			if len(i) == 0 {
+				continue
+			}
+			index := strings.IndexByte(i, ':')
+			if index >= 0 {
+				content += i[:index] + " "
+				i = i[index+1:]
+			}
+			content += "\"" + i + "\"\n"
+		}
+		content += ")\n"
+	}
+	text = []byte(content)
+	return
+}
+func (p PackageDecalre) Target() string {
+	if len(p.Target_) == 0 {
+		panic("not set target go file")
+	}
+	return p.Target_
 }

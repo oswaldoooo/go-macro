@@ -1,10 +1,8 @@
 package analyzer
 
 import (
-	"encoding"
 	"errors"
 	"fmt"
-	"go/format"
 	"reflect"
 	"strconv"
 
@@ -57,25 +55,7 @@ func (a *Analyzer) activeValue(c context, cmt Comment, g []token.Value) error {
 		return err
 	}
 	results := f.vl.Call(vvlist)
-	for _, v := range results {
-		if vstr, ok := v.Interface().(string); ok {
-			a.appendToTail = append(a.appendToTail, vstr)
-			continue
-		} else if marshaler, ok := v.Interface().(encoding.TextMarshaler); ok {
-			content, err := marshaler.MarshalText()
-			if err != nil {
-				return err
-			}
-			newcontent, err := format.Source(content)
-			if err == nil {
-				content = newcontent
-			}
-			a.appendToTail = append(a.appendToTail, string(content))
-			continue
-		}
-		c.eprintf("for the time being, only direct appends are supported, and structured data is not returned")
-	}
-	return nil
+	return actResult(a, results)
 }
 
 type group_param struct {

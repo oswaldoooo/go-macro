@@ -1,7 +1,9 @@
 package analyzer
 
 import (
+	"encoding"
 	"fmt"
+	"go/format"
 	"os"
 	"reflect"
 	"strconv"
@@ -9,6 +11,10 @@ import (
 
 	"github.com/oswaldoooo/bgo/types"
 )
+
+type targeter interface {
+	Target() string
+}
 
 // flag
 const (
@@ -94,4 +100,36 @@ func try_into(s string) any {
 		return bval
 	}
 	return s
+}
+
+func actResult(a *Analyzer, results []reflect.Value) error {
+	var dt any
+	for _, v := range results {
+		dt = v.Interface()
+		if vstr, ok := dt.(string); ok {
+			a.appendToTail = append(a.appendToTail, vstr)
+			continue
+		} else if marshaler, ok := dt.(encoding.TextMarshaler); ok {
+			content, err := marshaler.MarshalText()
+			if err != nil {
+				return err
+			}
+			newcontent, err := format.Source(content)
+			if err == nil {
+				content = newcontent
+			} else {
+				fmt.Println("warn: auto format error " + err.Error())
+			}
+			if tt, ok := dt.(targeter); ok && len(tt.Target()) > 0 {
+				if _, ok := a.other_targets[tt.Target()]; !ok {
+					a.other_targets[tt.Target()] = []string{}
+				}
+				a.other_targets[tt.Target()] = append(a.other_targets[tt.Target()], string(content))
+			} else {
+				a.appendToTail = append(a.appendToTail, string(content))
+			}
+			continue
+		}
+	}
+	return nil
 }
