@@ -1,7 +1,9 @@
 package analyzer
 
 import (
+	"encoding"
 	"errors"
+	"go/format"
 	stdparser "go/parser"
 	"go/token"
 	"os"
@@ -73,7 +75,6 @@ func (a *Analyzer) Analyze(_flag uint8) error {
 func (a *Analyzer) analyze(_ string, ctx context) error {
 
 	for _, t := range ctx.pkgs.Struct {
-		// fmt.Printf("%+v\n", t)
 		cmts := ctx.parseComments(t.Comment)
 		err := a.activeStructs(ctx, cmts)
 		if err != nil {
@@ -113,6 +114,10 @@ func (a *Analyzer) active_struct(c context, self string, params []string) error 
 	//transfer params
 	var fin = make([]reflect.Value, len(params))
 	for i := range fin {
+		if strings.HasSuffix(params[i], "?") {
+			fin[i] = a.matchFuncs(c, params[i][:len(params[i])-1])
+			continue
+		}
 		v := try_into(params[i])
 		if iv, ok := v.(int64); ok {
 			fin[i] = c.convert(iv, f.tp.In(i))
@@ -132,6 +137,17 @@ func (a *Analyzer) active_struct(c context, self string, params []string) error 
 	for _, v := range results {
 		if vstr, ok := v.Interface().(string); ok {
 			a.appendToTail = append(a.appendToTail, vstr)
+			continue
+		} else if marshaler, ok := v.Interface().(encoding.TextMarshaler); ok {
+			content, err := marshaler.MarshalText()
+			if err != nil {
+				return err
+			}
+			newcontent, err := format.Source(content)
+			if err == nil {
+				content = newcontent
+			}
+			a.appendToTail = append(a.appendToTail, string(content))
 			continue
 		}
 	}
@@ -153,6 +169,25 @@ func (a *Analyzer) tryGetType(c context, name string, tp reflect.Type) (result r
 	}
 	return reflect.ValueOf(name)
 	// panic("not implement other type")
+}
+func (a *Analyzer) matchFuncs(c context, name string) (result reflect.Value) {
+	var ans []gtoken.FuncType
+	var ff gtoken.FuncType
+	for _, f := range c.pkgs.Func {
+		if len(f.Self) == 0 {
+			continue
+		}
+		if index := strings.IndexByte(f.Self, ' '); index >= 0 {
+			f.Self = f.Self[index+1:]
+		}
+		if f.Self != name {
+			continue
+		}
+		ff.From(f)
+		ans = append(ans, ff)
+	}
+	result = reflect.ValueOf(ans)
+	return
 }
 
 //go:linkname build_additional github.com/oswaldoooo/go-macro/builder.analyze_build

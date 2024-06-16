@@ -1,8 +1,11 @@
 package builder
 
 import (
+	"encoding"
+	"strings"
 	_ "unsafe"
 
+	"github.com/oswaldoooo/bgo/types"
 	"github.com/oswaldoooo/go-macro/analyzer"
 )
 
@@ -32,3 +35,22 @@ func (b *Builder) Build(_flag uint8) error {
 //go:linkname analyze_build
 //go:noescape
 func analyze_build(*analyzer.Analyzer) error
+
+type Build[T encoding.TextMarshaler] struct {
+	Comment types.Comment //comment
+	Data    T
+}
+
+func (b Build[T]) MarshalText() (text []byte, err error) {
+	var content string
+	if len(b.Comment) > 0 {
+		content = strings.Join(b.Comment, "\n")
+	}
+	text, err = b.Data.MarshalText()
+	if err != nil {
+		return
+	}
+	content += string(text)
+	text = []byte(content)
+	return
+}

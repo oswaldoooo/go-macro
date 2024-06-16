@@ -5,9 +5,12 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/oswaldoooo/bgo"
+	"github.com/oswaldoooo/go-macro/builder"
+	gtoken "github.com/oswaldoooo/go-macro/token"
 )
 
 func TestShow(t *testing.T) {
@@ -20,7 +23,7 @@ func TestShow(t *testing.T) {
 }
 
 func TestPrint(t *testing.T) {
-	r, p, err := bgo.Parse("example.go")
+	r, p, err := bgo.Parse("alias/example.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,4 +40,10 @@ func TestPrint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestType(t *testing.T) {
+	var v builder.Build[gtoken.Struct]
+	tp := reflect.TypeOf(v)
+	t.Log("name ", tp.String())
 }

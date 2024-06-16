@@ -2,8 +2,7 @@ package main
 
 // call
 
-//go macro
-
+// go-macro: printmethod(MyStruct?)
 type MyStruct struct {
 	Name string
 	Info string
@@ -11,17 +10,16 @@ type MyStruct struct {
 }
 type Enum uint8
 
-// go-macro: enum2str(EnumStr,*,*)
+func (s MyStruct) Getname() {}
+func (s MyStruct) Close() error {
+	return nil
+}
+
+// go-macro: newobj(itest)
+// go-macro: enum2str(*,*)
 const (
 	Invalid Enum = iota
 	Start
 	Running
 	End
 )
-
-var EnumStr = map[Enum]string{
-	Invalid: "Invalid",
-	Start:   "Start",
-	Running: "Running",
-	End:     "End",
-}
