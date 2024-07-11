@@ -87,7 +87,7 @@ func loadpluginconfig(cpath string) {
 			fmt.Fprintln(os.Stderr, "not set plugin name")
 			continue
 		}
-		err = loadplugin(path.Join(defaulthome, pp.Name+".a"))
+		err = loadplugin(path.Join(defaulthome, pp.Name+".so"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "load plugin "+pp.Name+" error "+err.Error())
 		}

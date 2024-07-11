@@ -5,7 +5,11 @@ import (
 	"strings"
 )
 
-type Tag map[string]string
+type tagfield struct {
+	name  string
+	value string
+}
+type Tag []tagfield
 
 // simple express
 const (
@@ -17,31 +21,41 @@ var (
 )
 
 func ParseTag(s string) *Tag {
-	var t = make(Tag)
+	var t Tag
 	if len(s) > 0 {
 		s = s[1 : len(s)-1]
 	}
 	for _, v := range _tag_reg.FindAllStringSubmatch(s, -1) {
-		t[v[2]] = v[3]
+		if len(v) > 0 && len(v[2]) > 0 {
+			t = append(t, tagfield{name: v[2], value: v[3]})
+		}
 	}
 	return &t
 }
 func (t *Tag) Get(key string, defaul string) string {
-	if v, ok := (*t)[key]; ok {
-		return v
+	for i := range *t {
+		if (*t)[i].name == key {
+			return (*t)[i].value
+		}
 	}
 	return defaul
 }
 func (t *Tag) Set(k, v string) {
-	(*t)[k] = v
+	for i := range *t {
+		if (*t)[i].name == k {
+			(*t)[i].value = v
+			return
+		}
+	}
+	(*t) = append((*t), tagfield{name: k, value: v})
 }
 func (t Tag) String() string {
 	var (
 		ans []string = make([]string, len(t))
 		i   int
 	)
-	for k, v := range t {
-		ans[i] = k + `:"` + v + `"`
+	for k := range t {
+		ans[i] = t[k].name + `:"` + t[k].value + `"`
 		i++
 	}
 	if len(ans) > 0 {
