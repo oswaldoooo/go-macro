@@ -34,6 +34,7 @@ func enum2str(enum []token.Value) (result string) {
 func init() {
 	analyzer.Register("alias", alias)
 	analyzer.Register("enum2str", enum2str)
+	analyzer.Register("override_struct", overrideStruct)
 }
 func throw(err error) {
 	if err != nil {
@@ -49,6 +50,11 @@ func printMethod(src []token.FuncType) {
 	fmt.Println("find method", len(src))
 	for _, f := range src {
 		fmt.Println(f.Name, f.Params, f.Results)
+	}
+}
+func overrideStruct(src *token.Struct) {
+	for i := range src.Field {
+		src.Field[i].Tag_ = "`json:\"" + src.Field[i].Name() + "\"`"
 	}
 }
 func buildNewObject(name string) (builder.Build[token.Struct], builder.Build[token.FuncType]) {

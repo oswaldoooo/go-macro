@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/oswaldoooo/bgo/types"
+	"github.com/oswaldoooo/go-macro/token"
 )
 
 type targeter interface {
@@ -132,4 +133,23 @@ func actResult(a *Analyzer, results []reflect.Value) error {
 		}
 	}
 	return nil
+}
+
+func actArgs(a *Analyzer, args []reflect.Value) {
+	for _, v := range args {
+		rm, ok := v.Interface().(token.RawTextMarshaler)
+		if !ok {
+			continue
+		}
+		if _, ok := a.other_override["self"]; !ok {
+			a.other_override["self"] = []file_content{}
+		}
+		//add to builder contex
+		content, _ := rm.MarshalText()
+		a.other_override["self"] = append(a.other_override["self"], file_content{
+			start:   rm.Pos(),
+			end:     rm.End(),
+			content: content,
+		})
+	}
 }

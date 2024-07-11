@@ -1,12 +1,12 @@
 package main
 
 // call
+// go-macro: override_struct(MyStruct)
 
-// go-macro: printmethod(MyStruct?)
 type MyStruct struct {
-	Name string
-	Info string
-	Kind int
+	Name string `json:"Name"`
+	Info string `json:"Info"`
+	Kind int    `json:"Kind"`
 }
 type Enum uint8
 
@@ -15,11 +15,13 @@ func (s MyStruct) Close() error {
 	return nil
 }
 
-// go-macro: newobj(itest)
-// go-macro: enum2str(*,*)
 const (
-	Invalid Enum = iota
-	Start
-	Running
-	End
+	Invalid Enum = iota + 1 //3
+	Start                   //3
+	Running                 //4
+	End                     //5
 )
+
+type Stringer interface {
+	String() string
+}

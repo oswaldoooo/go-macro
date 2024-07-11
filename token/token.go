@@ -1,6 +1,7 @@
 package token
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"strings"
@@ -91,6 +92,8 @@ type Struct struct {
 	Ident   string
 	Tag     string
 	Comment types.Comment
+	Start_  int64
+	End_    int64
 }
 type Const struct {
 	name string
@@ -111,6 +114,8 @@ func (s *Struct) From(from types.Struct) {
 		s.Name = from.Ident
 		return
 	}
+	s.Start_ = from.Start
+	s.End_ = from.End
 	s.Name = from.Name
 	s.Field = make([]FieldType, len(from.Fields))
 	utils.SliceConvert(from.Fields, s.Field, func(src types.Field, dst *FieldType) {
@@ -240,4 +245,20 @@ func (p PackageDecalre) Target() string {
 		panic("not set target go file")
 	}
 	return p.Target_
+}
+
+//v1.2
+
+type RawTextMarshaler interface {
+	Pos() int64
+	End() int64
+	encoding.TextMarshaler
+}
+
+func (s *Struct) Pos() int64 {
+	return s.Start_
+}
+
+func (s *Struct) End() int64 {
+	return s.End_
 }

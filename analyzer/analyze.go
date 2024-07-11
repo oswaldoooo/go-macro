@@ -2,6 +2,8 @@ package analyzer
 
 import (
 	"errors"
+	"fmt"
+	"go/format"
 	stdparser "go/parser"
 	"go/token"
 	"os"
@@ -18,15 +20,21 @@ import (
 
 type Analyzer struct {
 	*types.Packages
-	repo          map[string]funcinfo
-	appendToTail  []string
-	rpath         string
-	other_targets map[string][]string
+	repo           map[string]funcinfo
+	appendToTail   []string
+	rpath          string
+	other_targets  map[string][]string
+	other_override map[string][]file_content
 }
 type context struct {
 	flag uint8
 	pkgs *types.Package
 	val  any
+}
+type file_content struct {
+	start   int64
+	end     int64
+	content []byte
 }
 
 func NewAnalyzer(rpath string) (*Analyzer, error) {
@@ -37,6 +45,7 @@ func NewAnalyzer(rpath string) (*Analyzer, error) {
 	}
 	var result Analyzer
 	result.other_targets = make(map[string][]string)
+	result.other_override = make(map[string][]file_content)
 	result.rpath = rpath
 	result.repo = repo
 	result.Packages = types.NewPackages()
@@ -134,6 +143,7 @@ func (a *Analyzer) active_struct(c context, self string, params []string) error 
 	}
 	results := f.vl.Call(fin)
 	//analyze result
+	actArgs(a, fin)
 	return actResult(a, results)
 }
 
@@ -143,10 +153,19 @@ func (a *Analyzer) tryGetType(c context, name string, tp reflect.Type) (result r
 		var rr gtoken.Struct
 		rr.From(st)
 		result = reflect.ValueOf(rr)
+		var isptr bool
+		if tp.Kind() == reflect.Pointer {
+			tp = tp.Elem()
+			isptr = true
+		}
 		if !result.Type().ConvertibleTo(tp) {
 			result = reflect.Value{}
 		} else {
-			result = result.Convert(tp)
+			if isptr {
+				result = reflect.ValueOf(&rr)
+			} else {
+				result = result.Convert(tp)
+			}
 		}
 		return
 	}
@@ -181,6 +200,10 @@ func build_additional(a *Analyzer) error {
 		f      *os.File
 		err    error
 	)
+	err = build_other_override(a)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "override to file error", err)
+	}
 	if len(a.appendToTail) == 0 {
 		if len(a.other_targets) > 0 {
 			goto other_targets_build
@@ -213,4 +236,41 @@ other_targets_build:
 		kf.Close()
 	}
 	return err
+}
+func build_other_override(a *Analyzer) error {
+	for k, v := range a.other_override {
+		if k == "self" {
+			func(resources []file_content) {
+				content, err := os.ReadFile(a.rpath)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "read raw ", a.rpath, "error", err)
+					return
+				}
+				f, err := os.OpenFile(a.rpath, os.O_WRONLY|os.O_TRUNC, 0644)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "open", a.rpath, "io error", err)
+					return
+				}
+				var contentstr = string(content)
+				defer f.Close()
+				var offset, nextpos, length int64
+				for i := range resources {
+					length = resources[i].end - resources[i].start
+					nextpos = resources[i].start + offset
+					contentstr = contentstr[:nextpos] + string(resources[i].content) + contentstr[nextpos+length:]
+					offset += int64(len(resources[i].content)) - length
+				}
+				content, err = format.Source([]byte(contentstr))
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "format error", err)
+					return
+				}
+				_, err = f.Write(content)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "write to", a.rpath, "error", err)
+				}
+			}(v)
+		}
+	}
+	return nil
 }
